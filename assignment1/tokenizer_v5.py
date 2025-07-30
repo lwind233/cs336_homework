@@ -6,6 +6,89 @@ import os
 from typing import BinaryIO
 from tqdm import tqdm
 
+
+def load_vocab():
+    pass
+
+def load_merges():
+    pass
+
+class Tokenizer:
+    def __init__(self,vocab,merges,special_tokens=None):
+        self.vocab = vocab
+        self.vocab_len = len(vocab)
+        self.merges = merges
+        self.special_tokens = special_tokens
+
+    @classmethod
+    def from_files(cls,vocab_filepath,merges_filepath,special_tokens=None):
+
+        vocab = load_vocab(vocab_filepath)
+        merges = load_merges(merges_filepath)
+
+        return cls(vocab,merges,special_tokens)
+
+    def mtp_encode(self,t_list):
+        return 
+
+    def encode(self,text): 
+        special_token = sorted([re.escape(token) for token in self.special_tokens], key=len, reverse=True)
+        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        tem_pat = '(?:'+'|'.join(special_token)+')|' + PAT
+        PATTERN = re.compile(tem_pat)
+
+        # tokens  = PATTERN.findall(text)
+        tokens = [match.group(0) for match in PATTERN.finditer(text)]
+
+        result = []
+        for i in tokens:
+            b_token = tuple(i.encode('utf-8'))
+            if i in self.special_tokens or len(b_token)==1:
+                # 当前字节串是特殊标记或者仅含有一个字节，此时直接进行遍历不会浪费太多时间
+                for iidx in range(self.vocab_len):
+                    if self.vocab[iidx] == b_token:
+                        result.append(iidx)
+                        break
+            else:
+                end = len(b_token)-1
+                # ptr指向待编码字节串的第n位
+                ptr = 0
+                while(ptr<end):
+                    # 从第一个字节开始
+                    tmp_token = (b_token[ptr],)
+                    idx = 0
+                    while(idx<self.vocab_len):
+                        # 如果在词汇表中发现了该字节串，记录这个字节串的序号
+                        if tmp_token == self.vocab[idx]:
+                            tmp_result = idx
+                            # print(tmp_result)
+                            # 将下一位字节与当前字节串进行组合，继续遍历词汇表，看看组合是否在词汇表里
+                            ptr = ptr + 1
+                            if ptr > end:
+                                # 已经到字节串末尾了，说明匹配完了
+                                break
+                            tmp_token = tmp_token + (b_token[ptr],)
+
+                        else:
+                            idx = idx+1
+
+                    result.append(tmp_result)
+            print(f"一个token编码完毕，当前列表：{result},当前token："+repr(i))
+
+        return result
+
+
+
+    def encode_iterable(self,iterable):
+        pass
+
+    def decode(self,ids):
+        token_bytes = ()
+        for i in ids: 
+            token_bytes = token_bytes  + self.vocab[i]
+
+        return bytes(token_bytes).decode('utf-8')
+
 def find_chunk_boundaries(
     file: BinaryIO, 
     desired_num_chunks: int, 
@@ -77,7 +160,8 @@ def pre_tokenization(split_chunk,special_tokens):
 
     if middle:
         mega_string = '\n'.join(middle)
-        tokens  = PATTERN.findall(mega_string)
+        # tokens  = PATTERN.findall(mega_string)
+        tokens = [match.group(0) for match in PATTERN.finditer(mega_string)]
         result.extend(tokens)
 
     return result
@@ -107,7 +191,7 @@ def detect(token,tup):
             return i
     return False
 
-def tokenizer(input_path,vocab_size,special_tokens):
+def train_tokenizer(input_path,vocab_size,special_tokens):
     start  = time.time()
     num_processes = os.cpu_count()
     # special_token = 
@@ -149,8 +233,9 @@ def tokenizer(input_path,vocab_size,special_tokens):
     vocab = {i:tuple(chr(i).encode('utf-8')) for i in range(256)}
     merges = [tuple(chr(i).encode('utf-8')) for i in range(256)]
 
-    merges.append(tuple(special_token.encode('utf-8')))
-    vocab[len(merges)-1] = tuple(special_token.encode('utf-8'))
+    for special_token in special_tokens:
+        merges.append(tuple(special_token.encode('utf-8')))
+        vocab[len(merges)-1] = tuple(special_token.encode('utf-8'))
     progress = tqdm(total=vocab_size-len(vocab), desc="分词器训练进度")
     
     # 进行第一次更新
@@ -289,6 +374,16 @@ if __name__ == '__main__':
     input_path = 'data/TinyStoriesV2-GPT4-valid.txt'
     vocab_size = 10000
     special_tokens = ["<|endoftext|>"]
-    vocab,merges = tokenizer(input_path,vocab_size,special_tokens)
-    print(len(merges))
-    print(vocab)
+    vocab,merges = train_tokenizer(input_path,vocab_size,special_tokens)
+    # print(len(merges))
+    # print(vocab)
+
+    tokenizer = Tokenizer(vocab,merges,special_tokens)
+#     text = """u don't have to be scared of the loud dog, I'll protect you". The mole felt so safe with the little girl. She was very kind and the mole soon came to trust her. He leaned against her and she kept him safe. The mole had found his best friend.
+# <|endoftext|>
+# """
+    text = 'hello\n<|endoftext|>\nworld!'
+    tokens = tokenizer.encode(text)
+    print(tokens)
+    bytes_t = tokenizer.decode(tokens)
+    print(bytes_t)
