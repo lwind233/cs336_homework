@@ -17,6 +17,6 @@
 ```
 uv run pytest -q tests/test_train_bpe.py
 ```
-* -q 快速核对
-* -vv 详细查报错
-* -k 选择特定测试
+* -q    简略输出
+* -vv   详细查报错
+* -k    选择特定测试

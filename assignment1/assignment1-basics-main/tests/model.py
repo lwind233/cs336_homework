@@ -24,5 +24,28 @@ class Embedding(torch.nn.Module):
         out = self.weights[x]
         out = rearrange(out,'(b s) d -> b s d', b = b,s = s)
         return out
+    
+class RMSnorm(torch.nn.Module):
+    def __init__(self,d_model,eps,device=None,dtype=None):
+        super().__init__()
+        self.d_model = d_model
+        self.gain = torch.nn.Parameter(torch.randn(d_model,device=device,dtype=dtype))
+        torch.nn.init.trunc_normal_(self.gain)
+        self.eps = eps
+
+    def forward(self,x):
+        in_dtype = x.dtype
+        x = x.to(torch.float32)
+        b = x.shape[0]
+        s = x.shape[1]
+        x = rearrange(x, 'b s d -> (b s) d')
+        rms_x = (x * x).sum(-1).unsqueeze(1)
+        rms_x = (rms_x / self.d_model + self.eps) ** 0.5
+
+        output = x / rms_x * self.gain
+        output = rearrange(output, '(b s) d -> b s d',b = b, s = s)
+        output.to(in_dtype)
+        return output
+
 
     
