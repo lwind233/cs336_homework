@@ -48,4 +48,19 @@ class RMSnorm(torch.nn.Module):
         return output
 
 
-    
+class FFN(torch.nn.Module):
+    def __init__(self, d_ff, d_model,device=None,dtype=None):
+        super().__init__()
+        self.w1 = torch.nn.Parameter(torch.randn(d_ff,d_model,device=device,dtype=dtype))
+        self.w2 = torch.nn.Parameter(torch.randn(d_model,d_ff,device=device,dtype=dtype))
+        self.w3 = torch.nn.Parameter(torch.randn(d_ff,d_model,device=device,dtype=dtype))
+        torch.nn.init.trunc_normal_(self.w1)
+        torch.nn.init.trunc_normal_(self.w2)
+        torch.nn.init.trunc_normal_(self.w3)
+
+    def silu(self,x):
+        return x/(1+torch.exp(-x))
+
+    def forward(self,x):
+        return (self.silu(x @ self.w1.T) * (x @ self.w3.T)) @ self.w2.T
+

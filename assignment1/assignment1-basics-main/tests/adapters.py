@@ -11,7 +11,7 @@ from torch import Tensor
 
 from .bpe import train_bpe
 from .tokenizer import Tokenizer
-from .model import Linear,Embedding,RMSnorm
+from .model import Linear,Embedding,RMSnorm,FFN
 
 def run_linear(
     d_in: int,
@@ -89,7 +89,13 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+
+    ffn = FFN(d_ff,d_model)
+    ffn.w1.data = w1_weight
+    ffn.w2.data = w2_weight
+    ffn.w3.data = w3_weight
+    
+    return ffn(in_features)
 
 
 def run_scaled_dot_product_attention(
