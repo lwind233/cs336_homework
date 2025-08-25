@@ -1,5 +1,6 @@
 import torch
 from einops import rearrange, einsum
+from math import cos,sin
 
 class Linear(torch.nn.Module):
     def __init__(self,in_features,out_features,device=None,dtype=None):
@@ -63,4 +64,29 @@ class FFN(torch.nn.Module):
 
     def forward(self,x):
         return (self.silu(x @ self.w1.T) * (x @ self.w3.T)) @ self.w2.T
+    
+class Rope(torch.nn.Module):
+    def __init__(self, theta, d_k, max_seq_len, device=None):
+        super().__init__()
+        self.theta = theta
+        self.d_k = d_k
+        self.max_seq_len = max_seq_len
 
+        theta_seq = torch.pow(self.theta, torch.arange(0,d_k//2)*-2/d_k)
+        
+
+
+
+        self.cos_embed = torch.cos(theta_seq)
+        self.sin_embed = torch.sin(theta_seq)
+
+
+
+    def forward(self,x):
+        # x:[b,s,d]
+        x_1 = x * self.cos_embed
+
+        s = x.shape[1]
+        x_1 = x * self.rope_matrix_cos[:s,:]
+        x_2 = x * self.rope_matrix_sin[:s,:]
+        return x_1+x_2
